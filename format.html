@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Imposter</title>
+    <style>
+        #hiddenText { display: none; margin-top: 1em; font-weight: bold; }
+    </style>
+}</head>
+<body>
+    <label for="numPlayers">Players:</label>
+    <input type="number" id="numPlayers" value="5" min="3" max="20" name="numberOfPlayers">
+    <button id="newGameBtn">New Game</button>
+    <button id="showNameBtn">Show Name</button>
+
+    <div id="hiddenText"></div>
+
+    <script>
+    async function newGame() {
+        const n = document.getElementById('numPlayers').value;
+        const res = await fetch('/new_game', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({numberOfPlayers: n})
+        });
+        const j = await res.json();
+        if (j.success) {
+            document.getElementById('hiddenText').textContent = 'New game: ' + j.players + ' players';
+            document.getElementById('hiddenText').style.display = 'block';
+        } else {
+            document.getElementById('hiddenText').textContent = 'Error creating game';
+            document.getElementById('hiddenText').style.display = 'block';
+        }
+    }
+
+    async function showName() {
+        const res = await fetch('/show_name');
+        if (!res.ok) {
+            const err = await res.json().catch(()=>({error:'Unknown error'}));
+            document.getElementById('hiddenText').textContent = err.error || 'Error';
+            document.getElementById('hiddenText').style.display = 'block';
+            return;
+        }
+        const j = await res.json();
+        if (j.name !== undefined) {
+            // server returns zero-based index; display as 1-based player number
+            const playerNum = (typeof j.index === 'number') ? (j.index + 1) : '?';
+            const text = `Player ${playerNum} — ${j.name}`;
+            document.getElementById('hiddenText').textContent = text;
+            document.getElementById('hiddenText').style.display = 'block';
+        } else {
+            document.getElementById('hiddenText').textContent = j.error || 'No name';
+            document.getElementById('hiddenText').style.display = 'block';
+        }
+    }
+
+    document.getElementById('newGameBtn').addEventListener('click', newGame);
+    document.getElementById('showNameBtn').addEventListener('click', showName);
+    </script>
+</body>
+</html>
