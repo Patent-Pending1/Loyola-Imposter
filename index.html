@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Imposter (Client)</title>
+    <style>
+        #hiddenText { display: none; margin-top: 1em; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <label for="numPlayers">Players:</label>
+    <input type="number" id="numPlayers" value="5" min="3" max="20" name="numberOfPlayers">
+    <button id="newGameBtn">New Game</button>
+    <button id="showNameBtn">Show Name</button>
+
+    <div id="hiddenText"></div>
+
+    <script>
+    // cached DOM elements for label updates
+    const showBtn = document.getElementById('showNameBtn');
+    const hiddenTextDiv = document.getElementById('hiddenText');
+    // initial label
+    showBtn.textContent = 'Show Name';
+
+    async function newGame() {
+        const n = document.getElementById('numPlayers').value;
+        const res = await fetch('/new_game', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({numberOfPlayers: n})
+        });
+        const j = await res.json();
+        if (j.success) {
+            hiddenTextDiv.textContent = 'New game: ' + j.players + ' players';
+            hiddenTextDiv.style.display = 'block';
+            // reset show button and clear any shown name
+            showBtn.textContent = 'Show Name';
+            // keep the new-game text visible, but clear name state after a short delay
+            setTimeout(()=>{
+                hiddenTextDiv.style.display = 'none';
+                hiddenTextDiv.textContent = '';
+            }, 1200);
+        } else {
+            hiddenTextDiv.textContent = 'Error creating game';
+            hiddenTextDiv.style.display = 'block';
+        }
+    }
+
+    async function showName() {
+        const hidden = hiddenTextDiv; // use cached element
+        // If a name/text is currently visible, hide it and do not fetch the next name.
+        if (hidden.style.display !== 'none' && hidden.textContent.trim() !== '') {
+            hidden.style.display = 'none';
+            hidden.textContent = '';
+            // update button label to show that next click will fetch
+            showBtn.textContent = 'Show Name';
+            return;
+        }
+
+        const res = await fetch('/show_name');
+        if (!res.ok) {
+            const err = await res.json().catch(()=>({error:'Unknown error'}));
+            hidden.textContent = err.error || 'Error';
+            hidden.style.display = 'block';
+            return;
+        }
+        const j = await res.json();
+        if (j.name !== undefined) {
+            // server returns zero-based index; display as 1-based player number
+            const playerNum = (typeof j.index === 'number') ? (j.index + 1) : '?';
+            const text = `Player ${playerNum} — ${j.name}`;
+            hidden.textContent = text;
+            hidden.style.display = 'block';
+            // when a name is visible, allow hiding with the same button
+            showBtn.textContent = 'Hide';
+        } else {
+            hidden.textContent = j.error || 'No name';
+            hidden.style.display = 'block';
+        }
+    }
+
+    document.getElementById('newGameBtn').addEventListener('click', newGame);
+    document.getElementById('showNameBtn').addEventListener('click', showName);
+    </script>
+</body>
+</html>
